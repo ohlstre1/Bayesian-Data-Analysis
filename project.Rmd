@@ -1,17 +1,32 @@
 ---
 title: "BDA_project"
 output: pdf_document
+Authors: "Edvard Ohlström", "Adam Harmat", "Yeralkhan Slam"
 date: "2023-11-06"
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+if(!require(medicaldata)){
+  install.packages("medicaldata")
+}
+
+library(medicaldata)
+library(aaltobda)
+library(bayesplot)
+library(cmdstanr)
+library(dplyr)
+library(ggplot2)
+library(ggdist)
+library(posterior)
+
 ```
 
 ## R Markdown
 
+Dataset description -  
+https://htmlpreview.github.io/?https://github.com/higgi13425/medicaldata/blob/master/man/codebooks/indo_rct_codebook.html
 
 
-```{r cars}
-summary(cars)
+```{r}
+data(indo_rct)
 ```
