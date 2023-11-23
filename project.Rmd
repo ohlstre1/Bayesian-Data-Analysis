@@ -27,6 +27,39 @@ Dataset description -
 https://htmlpreview.github.io/?https://github.com/higgi13425/medicaldata/blob/master/man/codebooks/indo_rct_codebook.html
 
 
+
+columns 1
+Outcome = Wheter they have the dises X
+
 ```{r}
-data(indo_rct)
+data(strep_tb)
+current_dir<-getwd()
+filename<-paste(current_dir,"/strep_tb.csv")
+filename<-gsub(" ", "", filename)
+write.csv(strep_tb,filename)
+
+#Put numeric values to binomial data. True=1, False=0
+df_numeric <- sterp_tb%>%
+mutate(across(where(is.factor), ~ as.numeric(.x == "True")))
 ```
+
+
+
+
+
+Step 1. 
+ - EDA , goal: Explore
+Step 2
+ - based on earlier results choose methods.
+
+Notes:
+
+R1. How good is the drug/treatment for baseline condition/?
+R2. When is the drug worth giving to patients?
+
+FAR out
+R3. What is the alternative cost for society and 
+
+
+Assume all hospitals have same distribution vs individual (non hierarchical and hierarchical)
+Test risk group 1, risk group 2...  (variable selection with many models)
