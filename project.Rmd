@@ -107,13 +107,22 @@ print(fit)
 ```{r}
 #generated_values <- extract(fit)
 
+accuracy_score <- function(data) {
+  
+  binary_predictions <- ifelse(data[, 1] > 0.5, 1, 0)
+  
+  correct_predictions <- binary_predictions == data[, 2]
+  
+  return(sum(correct_predictions) / nrow(data))
+}
+
 #fit$cmdstan_diagnose()
 mean_values <- fit$summary()
 
 prob_mean <- mean_values$mean[5:length(mean_values$mean)]
 
 output <- cbind(prob_mean, data$improved)
-
+output
 prob_mean_drug <- prob_mean[1:53]
 probl_mean_placebo <-  prob_mean[54:length(prob_mean)]
 
