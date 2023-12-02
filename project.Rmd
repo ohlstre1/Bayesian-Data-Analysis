@@ -18,48 +18,115 @@ library(dplyr)
 library(ggplot2)
 library(ggdist)
 library(posterior)
-
+library(dplyr)
+library(reshape2)
+library(rstan)
+library(cmdstanr)
+library(aaltobda)
+library(bayesplot)
+library(cmdstanr)
+library(dplyr)
+library(ggdist) # for stat_dotsinterval
+library(posterior)
 ```
 
 ## R Markdown
 
-Dataset description -  
-https://htmlpreview.github.io/?https://github.com/higgi13425/medicaldata/blob/master/man/codebooks/indo_rct_codebook.html
+Dataset description -  https://htmlpreview.github.io/?https://github.com/higgi13425/medicaldata/blob/master/man/description_docs/strep_tb_desc.html 
 
-
-
-columns 1
-Outcome = Wheter they have the dises X
 
 ```{r}
-data(strep_tb)
-current_dir<-getwd()
-filename<-paste(current_dir,"/strep_tb.csv")
-filename<-gsub(" ", "", filename)
-write.csv(strep_tb,filename)
 
-#Put numeric values to binomial data. True=1, False=0
-df_numeric <- sterp_tb%>%
-mutate(across(where(is.factor), ~ as.numeric(.x == "True")))
+data("strep_tb")
+strep_tb <- na.omit(strep_tb)
+summary(strep_tb)
+data <- read.csv(file = "strep_tb_scaled.csv", header = TRUE)
+data$X <- NULL
+data$n = 1
+
 ```
 
 
+Investigate the drug's efficacy based on different patient baselines, particularly focusing on whether it is more effective for individuals with severe illness compared to those less sick.
+
+you have x y z... features => will the drug work?
+
+find function that gives the prediction based on the patients base conditions
+
+1. logistic regression | input(x|theta, y|theta, z|theta) ->  probablility  {0,1} per patient | model assumption the features are not correlated
+
+  Case 1 - no separation (joint model)
+  Case 2 - group by baseline condition (seperate model)
+  Case 3 - Do not group but find the common (hierarichal model)
+
+logistic hierarichal | input(x|theta1, y|theta2, z|theta3 ) -> {0,1} per patient | model assumption the feature correlated
 
 
 
-Step 1. 
- - EDA , goal: Explore
-Step 2
- - based on earlier results choose methods.
 
-Notes:
+```{r}
 
-R1. How good is the drug/treatment for baseline condition/?
-R2. When is the drug worth giving to patients?
+matrix <- cbind(data$baseline_temp, data$baseline_esr)
+y_pred = 1:length(data$baseline_temp)
 
-FAR out
-R3. What is the alternative cost for society and 
+data_list <- list(
+  N = length(data$baseline_temp),
+  X = matrix,
+  y = data$improved
+  )
 
+
+
+#fit <- stan(file = "logistic_model.stan", data = data_list, chains = 4, iter = 2000)
+
+```
+
+
+TEMP Beta1 prior mean = (y2-y-1)  (1-0)/(101-99) = 0.5
+TEMP Beta1 prior SD = (diff(extreme value,TEMP prior mean )  - TEMP prior mean ) / 3 = (1-0.5) /3 = 0,1666666667 # probably not good
+
+ESR prior mean = 52-15.5
+ESR prior sd = 
+````{r}
+ m = 1/(52-15.5)
+sd = 1/()
+````
+
+
+````{r}
+model_pooled<- cmdstan_model(stan_file = "logistic_model.stan")
+
+# Sampling from the posterior distribution happens here:
+fit<- model_pooled$sample(data = data_list, refresh=0,
+                                      show_messages=FALSE,
+                                      show_exceptions=FALSE)
+print(fit)
+
+```
+
+```{r}
+#generated_values <- extract(fit)
+
+#fit$cmdstan_diagnose()
+mean_values <- fit$summary()
+
+prob_mean <- mean_values$mean[5:length(mean_values$mean)]
+
+output <- cbind(prob_mean, data$improved)
+
+prob_mean_drug <- prob_mean[1:53]
+probl_mean_placebo <-  prob_mean[54:length(prob_mean)]
+
+hist(prob_mean_drug, )
+hist(probl_mean_placebo)
+unique(prob_mean)
+```
+
+```{r}
+
+cbind(y_pred_prob, data)
+
+```
 
 Assume all hospitals have same distribution vs individual (non hierarchical and hierarchical)
 Test risk group 1, risk group 2...  (variable selection with many models)
