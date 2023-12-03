@@ -128,10 +128,14 @@ model_non_linear<- cmdstan_model(stan_file = "non_linear_logistic.stan")
 # Sampling from the posterior distribution happens here:
 fit_linear_control <- model_linear$sample(data = data_list_control,
                                       refresh=0,
+                                      max_treedepth = 20,
                                       iter_sampling = 4000,
                                       show_messages=FALSE,
                                       show_exceptions=FALSE)
 print(fit_linear_control)
+
+(fit_linear_control$summary()[['mean']])
+
 
 ```
 ## Linear model, dataset medicin
@@ -140,22 +144,22 @@ print(fit_linear_control)
 # Sampling from the posterior distribution happens here:
 fit_linear_medicin <- model_linear$sample(data = data_list_medicin, refresh=0,
                                       iter_sampling = 4000,
+                                      max_treedepth = 20,
                                       show_messages=FALSE,
                                       show_exceptions=FALSE)
 print(fit_linear_medicin )
 
-#fit_linear_medicin$sampler_diagnostics()
 ```
 ## Non-Linear model, dataset control
 ```{r}
 
 # Sampling from the posterior distribution happens here:
-fit_nonlinear_medicin <- model_non_linear$sample(data = data_list_control, refresh=0,
+fit_nonlinear_control <- model_non_linear$sample(data = data_list_control, refresh=0,
                                       max_treedepth = 20,
                                       show_messages=FALSE,
                                       show_exceptions=FALSE)
-print(fit_nonlinear_medicin )
-
+print(fit_nonlinear_control )
+fit_nonlinear_control.
 ```
 
 
@@ -171,9 +175,18 @@ print(fit_nonlinear_medicin )
 
 ```
 
+## Diagnosis
+```{r}
+print(fit_linear_medicin$cmdstan_diagnose())
+print(fit_linear_control$cmdstan_diagnose())
 
+print(fit_nonlinear_medicin$cmdstan_diagnose())
+print(fit_nonlinear_control$cmdstan_diagnose())
+```
 
 ```{r}
+
+
 
 print(fit_nonlinear_medicin$summary()[,"mean"])
 #generated_values <- extract(fit)
@@ -183,21 +196,31 @@ accuracy_score <- function(data) {
   correct_predictions <- binary_predictions == data[, 2]
   return(sum(correct_predictions) / nrow(data))
 }
+fit_to_accuracy <- function(fit, data_labels){
+  probs <- fit$summary()[['mean']]
+  probs <- probs[5:length(probs)]
+
+  output <- cbind(probs, data_labels)
+  return(accuracy_score(output))
+}
+
+print(fit_to_accuracy(fit=fit_linear_medicin,  data_medicin$improved ))
+print(fit_to_accuracy(fit=fit_linear_control,  data_control$improved ))
+print(fit_to_accuracy(fit=fit_nonlinear_medicin,  data_medicin$improved ))
+print(fit_to_accuracy(fit=fit_nonlinear_control,  data_control$improved ))
 
 
-mean_values <- fit_nonlinear_medicin$summary()
-prob_mean <- mean_values$mean[5:length(mean_values$mean)]
 
 
-probs <- fit_nonlinear_medicin$summary()['mean'][6:length(mean_values$mean),1]
-
-output <- cbind(prob_mean, data_medicin$improved)
-output
-accuracy_score(output)
-fit_nonlinear_medicin$summary()['mean'][6:length(mean_values$mean),1]
-length(data_medicin$improved)
 ```
+```{r}
 
+m <- fit_linear_medicin$summary()[['mean']]
+q95 <- fit_linear_medicin$summary()[['q95']]
+q5 <- fit_linear_medicin$summary()[['q5']]
+cbind(q5, m, q95)
+
+````
 
 Assume all hospitals have same distribution vs individual (non hierarchical and hierarchical)
 Test risk group 1, risk group 2...  (variable selection with many models)
