@@ -35,17 +35,9 @@ library(posterior)
 Dataset description -  https://htmlpreview.github.io/?https://github.com/higgi13425/medicaldata/blob/master/man/description_docs/strep_tb_desc.html 
 
 
-```{r}
 
-data("strep_tb")
-strep_tb <- na.omit(strep_tb)
-summary(strep_tb)
-data <- read.csv(file = "strep_tb_scaled.csv", header = TRUE)
-data$X <- NULL
-data$n = 1
 
-```
-
+ROUGH toughts
 
 Investigate the drug's efficacy based on different patient baselines, particularly focusing on whether it is more effective for individuals with severe illness compared to those less sick.
 
@@ -63,79 +55,150 @@ logistic hierarichal | input(x|theta1, y|theta2, z|theta3 ) -> {0,1} per patient
 
 
 
-
-```{r}
-
-matrix <- cbind(data$baseline_temp, data$baseline_esr)
-y_pred = 1:length(data$baseline_temp)
-
-data_list <- list(
-  N = length(data$baseline_temp),
-  X = matrix,
-  y = data$improved
-  )
-
-
-
-#fit <- stan(file = "logistic_model.stan", data = data_list, chains = 4, iter = 2000)
-
-```
-
-
-TEMP Beta1 prior mean = (y2-y-1)  (1-0)/(101-99) = 0.5
+TEMP Beta1 prior mean = (y2-y-1)  
 TEMP Beta1 prior SD = (diff(extreme value,TEMP prior mean )  - TEMP prior mean ) / 3 = (1-0.5) /3 = 0,1666666667 # probably not good
 
 ESR prior mean = 52-15.5
 ESR prior sd = 
+
+```{r}
+# data preperation
+data("strep_tb")
+strep_tb <- na.omit(strep_tb)
+summary(strep_tb)
+data <- read.csv(file = "strep_tb_scaled.csv", header = TRUE)
+data$X <- NULL
+data$n = 1
+
+data_medicin = data[data$arm == 1,]
+data_control = data[data$arm == 0,]
+
+```
+
 ````{r}
- m = 1/(52-15.5)
-sd = 1/()
+#priors
+
+beta_1_mean = 1/(106-93) # tempetrue in farenhieth
+beta_1_sd = 20
+beta_2_mean = 1/(50-5) # ESR mm/hr
+beta_2_sd = 20 
 ````
 
 
 ````{r}
-model_pooled<- cmdstan_model(stan_file = "logistic_model.stan")
+## creating data_list
 
-# Sampling from the posterior distribution happens here:
-fit<- model_pooled$sample(data = data_list, refresh=0,
-                                      show_messages=FALSE,
-                                      show_exceptions=FALSE)
-print(fit)
+matrix_control <- cbind(data_control$baseline_temp, data_control$baseline_esr)
+
+data_list_control <- list(
+  N = length(data_control$baseline_temp),
+  X = matrix_control,
+  y = data_control$improved,
+  beta1_prior_mean =  beta_1_mean,
+  beta2_prior_mean = beta_1_sd,
+  beta1_prior_sd = beta_2_mean,
+  beta2_prior_sd= beta_2_sd
+  )
+
+
+
+matrix_medicin <- cbind(data_medicin$baseline_temp, data_medicin$baseline_esr)
+
+data_list_medicin <- list(
+  N = length(data_medicin$baseline_temp),
+  X = matrix_medicin,
+  y = data_medicin$improved,
+  beta1_prior_mean =  beta_1_mean,
+  beta2_prior_mean = beta_1_sd,
+  beta1_prior_sd = beta_2_mean,
+  beta2_prior_sd= beta_2_sd
+  )
 
 ```
 
 ```{r}
-#generated_values <- extract(fit)
+## compiling
+model_linear<- cmdstan_model(stan_file = "linear_logistic.stan")
+model_non_linear<- cmdstan_model(stan_file = "non_linear_logistic.stan")
 
+```
+## Linear model, dataset control
+```{r}
+
+# Sampling from the posterior distribution happens here:
+fit_linear_control <- model_linear$sample(data = data_list_control,
+                                      refresh=0,
+                                      iter_sampling = 4000,
+                                      show_messages=FALSE,
+                                      show_exceptions=FALSE)
+print(fit_linear_control)
+
+```
+## Linear model, dataset medicin
+```{r}
+
+# Sampling from the posterior distribution happens here:
+fit_linear_medicin <- model_linear$sample(data = data_list_medicin, refresh=0,
+                                      iter_sampling = 4000,
+                                      show_messages=FALSE,
+                                      show_exceptions=FALSE)
+print(fit_linear_medicin )
+
+#fit_linear_medicin$sampler_diagnostics()
+```
+## Non-Linear model, dataset control
+```{r}
+
+# Sampling from the posterior distribution happens here:
+fit_nonlinear_medicin <- model_non_linear$sample(data = data_list_control, refresh=0,
+                                      max_treedepth = 20,
+                                      show_messages=FALSE,
+                                      show_exceptions=FALSE)
+print(fit_nonlinear_medicin )
+
+```
+
+
+## Non-Linear model, dataset medicin
+```{r}
+
+# Sampling from the posterior distribution happens here:
+fit_nonlinear_medicin <- model_non_linear$sample(data = data_list_medicin, refresh=0,
+                                      max_treedepth = 20,
+                                      show_messages=FALSE,
+                                      show_exceptions=FALSE)
+print(fit_nonlinear_medicin )
+
+```
+
+
+
+```{r}
+
+print(fit_nonlinear_medicin$summary()[,"mean"])
+#generated_values <- extract(fit)
+# two colums X1 is probs_mean
 accuracy_score <- function(data) {
-  
   binary_predictions <- ifelse(data[, 1] > 0.5, 1, 0)
-  
   correct_predictions <- binary_predictions == data[, 2]
-  
   return(sum(correct_predictions) / nrow(data))
 }
 
-#fit$cmdstan_diagnose()
-mean_values <- fit$summary()
 
+mean_values <- fit_nonlinear_medicin$summary()
 prob_mean <- mean_values$mean[5:length(mean_values$mean)]
 
-output <- cbind(prob_mean, data$improved)
+
+probs <- fit_nonlinear_medicin$summary()['mean'][6:length(mean_values$mean),1]
+
+output <- cbind(prob_mean, data_medicin$improved)
 output
-prob_mean_drug <- prob_mean[1:53]
-probl_mean_placebo <-  prob_mean[54:length(prob_mean)]
-
-hist(prob_mean_drug, )
-hist(probl_mean_placebo)
-unique(prob_mean)
+accuracy_score(output)
+fit_nonlinear_medicin$summary()['mean'][6:length(mean_values$mean),1]
+length(data_medicin$improved)
 ```
 
-```{r}
-
-cbind(y_pred_prob, data)
-
-```
 
 Assume all hospitals have same distribution vs individual (non hierarchical and hierarchical)
 Test risk group 1, risk group 2...  (variable selection with many models)
+
