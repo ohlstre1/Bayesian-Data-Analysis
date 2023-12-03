@@ -1,3 +1,4 @@
+// Non-Linear Logistic regression model 
 data {
   int<lower=0> N; // Number of observations
   array[N] int<lower=0, upper=1> y; // Outcome variable (1 for improved, 0 for not improved)

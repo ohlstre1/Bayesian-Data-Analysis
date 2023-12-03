@@ -1,9 +1,22 @@
 ---
-title: "BDA_project"
-output: pdf_document
-Authors: "Edvard Ohlström", "Adam Harmat", "Yeralkhan Slam"
-date: "2023-11-06"
+title: "Appendix: project code"
+author: anonymous # <-- hand in anonymously
+format: 
+  html:
+    toc: true
+    code-tools: true
+    code-line-numbers: true  
+    number-sections: true
+    mainfont: Georgia, serif
+    page-layout: article
+  pdf:  
+    geometry:
+    - left=1cm,top=1cm,bottom=1cm,right=7cm
+    number-sections: true
+    code-annotations: none
+editor: source
 ---
+
 
 ```{r setup, include=FALSE}
 if(!require(medicaldata)){
@@ -28,38 +41,10 @@ library(cmdstanr)
 library(dplyr)
 library(ggdist) # for stat_dotsinterval
 library(posterior)
+
 ```
 
-## R Markdown
 
-Dataset description -  https://htmlpreview.github.io/?https://github.com/higgi13425/medicaldata/blob/master/man/description_docs/strep_tb_desc.html 
-
-
-
-
-ROUGH toughts
-
-Investigate the drug's efficacy based on different patient baselines, particularly focusing on whether it is more effective for individuals with severe illness compared to those less sick.
-
-you have x y z... features => will the drug work?
-
-find function that gives the prediction based on the patients base conditions
-
-1. logistic regression | input(x|theta, y|theta, z|theta) ->  probablility  {0,1} per patient | model assumption the features are not correlated
-
-  Case 1 - no separation (joint model)
-  Case 2 - group by baseline condition (seperate model)
-  Case 3 - Do not group but find the common (hierarichal model)
-
-logistic hierarichal | input(x|theta1, y|theta2, z|theta3 ) -> {0,1} per patient | model assumption the feature correlated
-
-
-
-TEMP Beta1 prior mean = (y2-y-1)  
-TEMP Beta1 prior SD = (diff(extreme value,TEMP prior mean )  - TEMP prior mean ) / 3 = (1-0.5) /3 = 0,1666666667 # probably not good
-
-ESR prior mean = 52-15.5
-ESR prior sd = 
 
 ```{r}
 # data preperation
@@ -85,13 +70,13 @@ beta_2_sd = 20
 ````
 
 
-````{r}
+```{r}
 ## creating data_list
 
 matrix_control <- cbind(data_control$baseline_temp, data_control$baseline_esr)
 
 data_list_control <- list(
-  N = length(data_control$baseline_temp),
+  N = length(data_control$baseline_temp), 
   X = matrix_control,
   y = data_control$improved,
   beta1_prior_mean =  beta_1_mean,
@@ -134,8 +119,6 @@ fit_linear_control <- model_linear$sample(data = data_list_control,
                                       show_exceptions=FALSE)
 print(fit_linear_control)
 
-(fit_linear_control$summary()[['mean']])
-
 
 ```
 ## Linear model, dataset medicin
@@ -159,7 +142,7 @@ fit_nonlinear_control <- model_non_linear$sample(data = data_list_control, refre
                                       show_messages=FALSE,
                                       show_exceptions=FALSE)
 print(fit_nonlinear_control )
-fit_nonlinear_control.
+
 ```
 
 
@@ -213,15 +196,47 @@ print(fit_to_accuracy(fit=fit_nonlinear_control,  data_control$improved ))
 
 
 ```
+
+
 ```{r}
 
-m <- fit_linear_medicin$summary()[['mean']]
-q95 <- fit_linear_medicin$summary()[['q95']]
-q5 <- fit_linear_medicin$summary()[['q5']]
-cbind(q5, m, q95)
+unique_arg_values <- function(fit, if_linear, is_medicin) {
+  means <- fit$summary()[['mean']]
+  unique_means <- unique(means)
+  indices_of_unique_means <- match(unique_means, means)
+if(if_linear){
+  if(is_medicin){
+    return(indices_of_unique_means[5:length(indices_of_unique_means)])
+  }else{
+    return(indices_of_unique_means[11:length(indices_of_unique_means)-3])
+  }
+}else{
+    if(is_medicin){
+        return(indices_of_unique_means[6:length(indices_of_unique_means)])
+    }else{
+        return(indices_of_unique_means[11:length(indices_of_unique_means)-3])
+    }
+  }
+}
 
-````
 
-Assume all hospitals have same distribution vs individual (non hierarchical and hierarchical)
-Test risk group 1, risk group 2...  (variable selection with many models)
+plot_mcmc <- function(fit, title_name , if_linear, is_medicin) {
+  unique_indexes <- unique_arg_values(fit , if_linear, is_medicin)
+  posterior_samples <- fit$draws()
+  posterior_len <- length(posterior_samples[,1,1])
+  y_prob_mean_vector <-posterior_samples[(posterior_len-100):posterior_len, 4, unique_indexes]
+
+  plot <- bayesplot::mcmc_areas(y_prob_mean_vector, prob = 0.5, prob_outer = 0.90)
+
+  plot_with_title <- plot + ggtitle(title_name)
+  
+  print(plot_with_title)
+}
+
+plot_mcmc(fit_linear_control, "Model - Linear; Data - Control", 1, 0)
+plot_mcmc(fit_linear_medicin, "Model - Linear; Data - Streptomycin", 1, 1)
+plot_mcmc(fit_nonlinear_medicin, "Model - Non-Linear; Data - Streptomycin", 0, 1)
+plot_mcmc(fit_nonlinear_control, "Model - Non-Linear; Data - Control", 0, 0)
+
+```
 
