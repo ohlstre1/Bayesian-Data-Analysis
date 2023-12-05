@@ -200,6 +200,8 @@ print(fit_to_accuracy(fit=fit_nonlinear_control,  data_control$improved ))
 
 ```{r}
 
+
+
 unique_arg_values <- function(fit, if_linear, is_medicin) {
   means <- fit$summary()[['mean']]
   unique_means <- unique(means)
@@ -238,5 +240,96 @@ plot_mcmc(fit_linear_medicin, "Model - Linear; Data - Streptomycin", 1, 1)
 plot_mcmc(fit_nonlinear_medicin, "Model - Non-Linear; Data - Streptomycin", 0, 1)
 plot_mcmc(fit_nonlinear_control, "Model - Non-Linear; Data - Control", 0, 0)
 
-```
 
+
+```
+```{r}
+unique_parameter_distribution <- function (fit1, fit2, fit3, fit4){
+
+beta1_draws <- fit$draws()[, , 2]
+beta2_draws <- fit$draws()[, , 3]
+alpha_draws <- fit$draws()[, , 4]
+beta1_draws_mean <- apply(beta1_draws, 1, mean)
+beta2_draws_mean <- apply(beta2_draws, 1, mean)
+alpha_draws_mean <- apply(alpha_draws, 1, mean)
+
+n <- length(beta1_draws_mean)
+
+plot <- bayesplot::mcmc_areas(y_prob_mean_vector, prob = 0.5, prob_outer = 0.90)
+
+
+}
+unique_parameter_distribution <- function(fit1, fit2, fit3, fit4) {
+  # Function to extract draws for a given parameter index
+  get_draws <- function(fit, parameter_index) {
+    length_draws = dim(fit$draws())[1]
+    fit$draws()[length_draws-300:length_draws , , parameter_index]
+  }
+
+  # Extract draws for each parameter across all fits
+  fits <- list(fit1, fit2, fit3, fit4)
+  alpha_draws <- lapply(fits, function(fit) get_draws(fit, 4))
+  beta1_draws <- lapply(fits, function(fit) get_draws(fit, 2))
+  beta2_draws <- lapply(fits, function(fit) get_draws(fit, 3))
+  print(dim(beta1_draws))
+  # Generate plots for each parameter
+  plot_alpha <- lapply(alpha_draws, function(draws) bayesplot::mcmc_areas(draws, prob = 0.5, prob_outer = 0.90))
+  plot_beta1 <- lapply(beta1_draws, function(draws) bayesplot::mcmc_areas(draws, prob = 0.5, prob_outer = 0.90))
+  plot_beta2 <- lapply(beta2_draws, function(draws) bayesplot::mcmc_areas(draws, prob = 0.5, prob_outer = 0.90))
+
+  # Arrange plots into subplots
+  gridExtra::grid.arrange(grobs = c(plot_alpha, plot_beta1, plot_beta2), ncol = 4)
+}
+
+
+unique_parameter_distribution(fit_linear_control, fit_nonlinear_control, fit_linear_medicin, fit_nonlinear_medicin)
+
+
+unique_parameter_distribution <- function(fit1, fit2, fit3, fit4) {
+  # Function to extract draws for a given parameter index
+  get_draws <- function(fit, parameter_index) {
+    length_draws = dim(fit$draws())[1]
+    fit$draws()[length_draws-300:length_draws , , parameter_index]
+  }
+
+  # Extract draws for each parameter across all fits
+  fits <- list(fit1, fit2, fit3, fit4)
+  alpha_draws <- lapply(fits, function(fit) get_draws(fit, 4))
+  beta1_draws <- lapply(fits, function(fit) get_draws(fit, 2))
+  beta2_draws <- lapply(fits, function(fit) get_draws(fit, 3))
+
+  # Generate plots for each parameter
+  plot_alpha <- lapply(alpha_draws, function(draws) bayesplot::mcmc_areas(draws, prob = 0.5, prob_outer = 0.90))
+  plot_beta1 <- lapply(beta1_draws, function(draws) bayesplot::mcmc_areas(draws, prob = 0.5, prob_outer = 0.90))
+  plot_beta2 <- lapply(beta2_draws, function(draws) bayesplot::mcmc_areas(draws, prob = 0.5, prob_outer = 0.90))
+
+  # Arrange plots into subplots
+  gridExtra::grid.arrange(grobs = c(plot_alpha, plot_beta1, plot_beta2), ncol = 4)
+}
+
+
+unique_parameter_distribution <- function(fit3, fit4) {
+  # Function to extract draws for a given parameter index
+  get_draws <- function(fit, parameter_index) {
+    length_draws = dim(fit$draws())[1]
+    fit$draws()[length_draws-300:length_draws , , parameter_index]
+  }
+
+  # Extract draws for each parameter across all fits
+  fits <- list(fit1, fit2, fit3, fit4)
+  alpha_draws <- lapply(fits, function(fit) get_draws(fit, 4))
+  beta1_draws <- lapply(fits, function(fit) get_draws(fit, 2))
+  beta2_draws <- lapply(fits, function(fit) get_draws(fit, 3))
+
+  # Generate plots for each parameter
+  plot_alpha <- lapply(alpha_draws, function(draws) bayesplot::mcmc_areas(draws, prob = 0.5, prob_outer = 0.90))
+  plot_beta1 <- lapply(beta1_draws, function(draws) bayesplot::mcmc_areas(draws, prob = 0.5, prob_outer = 0.90))
+  plot_beta2 <- lapply(beta2_draws, function(draws) bayesplot::mcmc_areas(draws, prob = 0.5, prob_outer = 0.90))
+
+  # Arrange plots into subplots
+  gridExtra::grid.arrange(grobs = c(plot_alpha, plot_beta1, plot_beta2), ncol = 4)
+}
+
+
+
+```
