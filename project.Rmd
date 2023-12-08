@@ -192,6 +192,48 @@ print(fit_to_accuracy(fit=fit_linear_control,  data_control$improved ))
 print(fit_to_accuracy(fit=fit_nonlinear_medicin,  data_medicin$improved ))
 print(fit_to_accuracy(fit=fit_nonlinear_control,  data_control$improved ))
 
+calculateMetrics <- function(predicted, actual) {
+  confusionMatrix <- table(Predicted = predicted, Actual = actual)
+  TP <- 0; FP <- 0; TN <- 0; FN <- 0
+  print(confusionMatrix)
+  if ("1" %in% rownames(confusionMatrix) && "1" %in% colnames(confusionMatrix)) {
+    TP <- confusionMatrix["1", "1"]
+  }
+  if ("1" %in% rownames(confusionMatrix) && "0" %in% colnames(confusionMatrix)) {
+    FP <- confusionMatrix["1", "0"]
+  }
+  if ("0" %in% rownames(confusionMatrix) && "0" %in% colnames(confusionMatrix)) {
+    TN <- confusionMatrix["0", "0"]
+  }
+  if ("0" %in% rownames(confusionMatrix) && "1" %in% colnames(confusionMatrix)) {
+    FN <- confusionMatrix["0", "1"]
+  }
+  
+  recall <- TP / (TP + FN)  # Here FN is 0
+  precision <- TP / (TP + FP)
+  F1 <- ifelse((precision + recall) > 0, 2 * (precision * recall) / (precision + recall), 0)
+
+  # Return the results
+  return(list(recall = recall, precision = precision, F1 = F1))
+}
+
+fit_to_metrics <- function(fit, data_labels){
+  probs <- fit$summary()[['mean']]
+  probs <- probs[5:length(probs)]
+  output <- cbind(probs, data_labels)
+
+  output[, 1] <- ifelse(output[, 1] > 0.5, 1, 0)
+  predicted <- output[, 1]
+  actual <- output[, 2]
+
+  metrics <- calculateMetrics(predicted, actual)
+  return(metrics)
+
+}
+fit_to_metrics(fit=fit_linear_medicin,  data_medicin$improved )
+fit_to_metrics(fit=fit_linear_control,  data_control$improved )
+fit_to_metrics(fit=fit_nonlinear_control,  data_control$improved )
+fit_to_metrics(fit=fit_nonlinear_medicin,  data_medicin$improved )
 
 
 
