@@ -1,0 +1,372 @@
+---
+title: "Assignment 8"
+subtitle: "LOO-CV model comparison"
+author: anonymous # <-- hand in anonymously
+format:
+  html:
+    toc: true
+    code-tools: true
+    code-line-numbers: true
+    number-sections: true
+    mainfont: Georgia, serif
+    page-layout: article
+  pdf:  
+    geometry:
+    - left=1cm,top=1cm,bottom=1cm,right=7cm
+    number-sections: true
+    code-annotations: none
+editor: source
+---
+
+
+# General information
+
+This is the template for [assignment 8](assignment8.html). You can download the [qmd-file](./template8.qmd) or copy the code from this rendered document after clicking on `</> Code` in the top right corner.
+
+**Please replace the instructions in this template by your own text, explaining what you are doing in each exercise.** 
+
+
+
+:::: {.content-hidden when-format="pdf"}
+::: {.callout-warning collapse=false}
+ 
+## Setup
+
+
+*This block will only be visible in your HTML output, but will be hidden when rendering to PDF with quarto for the submission.*
+**Make sure that this does not get displayed in the PDF!**
+    
+
+
+
+The following loads several needed packages:
+
+```{r}
+#| label: imports
+library(bayesplot)
+library(cmdstanr)
+library(dplyr)
+library(ggplot2)
+library(ggdist) # for stat_dotsinterval
+library(posterior)
+library(brms)
+# Globally specfiy cmdstan backend for brms
+options(brms.backend="cmdstanr")
+# Tell brms to cache results if possible
+options(brms.file_refit="on_change")
+
+# Set more readable themes with bigger font for plotting packages
+ggplot2::theme_set(theme_minimal(base_size = 14))
+bayesplot::bayesplot_theme_set(theme_minimal(base_size = 14))
+```
+
+:::
+::::
+
+
+# A hierarchical model for chicken weight time series
+
+Referencing models:
+Linear regression  model is referenced as f1 
+Log-normal linear regression model is referenced as f2 
+Hierarchical log-normal linear regression is meant as f3
+
+
+## Exploratory data analysis
+
+## (a)
+
+
+```{r}
+data("ChickWeight")
+
+# Create a histogram using ggplot
+ggplot(ChickWeight, aes(x = weight,)) +
+  geom_histogram(binwidth = 20) +
+  labs(title = "Histogram of Chicken Weights",
+       x = "Weight (gram)",
+       y = "Frequency")
+
+
+```
+In the histogram of Chicken wights plot, one can see the distribution fo weights by the number of frequency each weight has been observed in the dataset. There are higher distribution of lower weights relatively to higher weights. This relationship seems to be dwindling. The reason for the relationship is probably because chicken weights are increasing for each day as the chickens are growing up. This can be confirmed with a Chicken weight over time. 
+
+
+## (b)
+
+
+```{r}
+# Plotting the line plot with ggplot
+ggplot(data = ChickWeight, aes(x = Time, y = weight, group = Diet, color = Diet)) +
+  
+  geom_line(aes( group= Chick), method = 'loess', se = FALSE) + 
+  labs(title = "Chicken Weight Over Time by Diet",
+       x = "Time(Days)",
+       y = "Weight (g)") +
+  theme_minimal() +
+  scale_color_brewer(palette = "Set1")
+
+```
+In the Chicken weight over time by diet graph one can see how each diet affected the weight over time. The diet 3 seems to be best for fastest growth. This graph has been smoothed for easier readability.
+
+## Linear regression
+
+## (c)
+
+
+```{r, echo=FALSE}
+
+
+priors <- c(
+  prior(normal(0, 10), coef = "Time"),
+  prior(normal(0, 50), coef = "Diet2"),
+  prior(normal(0, 50), coef = "Diet3"),
+  prior(normal(0, 50), coef = "Diet4")
+)
+
+
+f1 <- brms::brm(
+  # This specifies the formula
+  weight ~ 1 + Time + Diet,
+  # This specifies the dataset
+  data = ChickWeight,
+  # This specifies the observation model family
+  family = 'normal', #= gaussian
+  # This passes the priors specified above to brms
+  prior = priors,
+  # This causes brms to cache the results
+  file = "f1"
+)
+```
+
+The priors are estimations based on observing Chicken weight over time by diet graph.
+
+## (d)
+
+
+```{r}
+pp_check(f1)
+```
+The plot compares observed data (y) to simulated data (y_red) from the posterior predictive distribution.
+From the observed data (y) and posterior predictive distribution (y_rep) are different which indicates model not being the best fit. Although this is only a visual tool one can not defintely say what is wrong. 
+
+y_rep has negative values
+
+## (e)
+
+
+```{r}
+
+pp_check(f1, type = "intervals_grouped", group = "Diet")
+```
+There seems again to be divergence between y_rep and y as the y wanders outside of the predictions.
+
+One way to improve the model is to enforcing positivity or taking into account heterogeneity.
+## Log-normal linear regression
+
+## (f)
+
+
+```{r, echo=FALSE}
+
+log_priors <- c(
+  prior(normal(10, log(1)), coef = "Time"),
+  prior(normal(5, log(1)), coef = "Diet2"),
+  prior(normal(5, log(1)), coef = "Diet3"),
+  prior(normal(5, log(1)), coef = "Diet4")
+)
+
+f2 <- brms::brm(
+  # This specifies the formula
+  weight ~ 1 + Time + Diet,
+  # This specifies the dataset
+  data = ChickWeight,
+  # This specifies the observation model family
+  family = "lognormal",
+  # This passes the priors specified above to brms
+  prior = priors,
+  # This causes brms to cache the results
+  file = "f2"
+)
+```
+
+```{r}
+pp_check(f2)
+
+```
+```{r}
+pp_check(f2, type = "intervals_grouped", group = "Diet")
+```
+In the two plots above, it can be observed the model seems to fit better than in the normal linear regression. There is some variation in the predictions but considerbly less than in the linear regression model. There are still some divergence between predictions and observations.
+
+## Hierarchical log-normal linear regression
+
+```{r, echo=FALSE}
+log_priors <- c(
+  prior(normal(10, log(1)), coef = "Time"),
+  prior(normal(5, log(1)), coef = "Diet2"),
+  prior(normal(5, log(1)), coef = "Diet3"),
+  prior(normal(5, log(1)), coef = "Diet4")
+)
+
+f3 <- brms::brm(
+  # This specifies the formula
+  weight ~ 1 + Time + Diet +(Time|Chick),
+  # This specifies the dataset
+  data = ChickWeight,
+  # This specifies the observation model family
+  family = "lognormal",
+  # This passes the priors specified above to brms
+  prior = priors,
+  # This causes brms to cache the results
+  file = "f3"
+)
+```
+
+## (g)
+```{r}
+pp_check(f3)
+```
+
+```{r}
+pp_check(f3, type = "intervals_grouped", group = "Diet")
+```
+In the two plots above, it can be observed the model seems to fit better than in the normal linear regression and log normal linear regression.
+
+There are some marginal deviations between the observed and predicted data in some groups but more analysis should be done to find the root cause. In this case one starts getting diminishing returns for improved models and more complex model may lead to overfitting.. In the case one would want to try improving the model. Firstly, Reviewing and potentially adjusting the priors to better reflect the known constraints or beliefs about the data could also improve the model. Secondly, Investigating the influence of potential outliers on the model's predictions. 
+
+
+## (h)
+
+All models have reached an Rhat value of 1. ESS have all been over the threshold value of 400. 
+Thus all three models (f1, f2 and f3) have reached convergence.
+
+
+
+## Model comparison using the ELPD
+
+## (i)
+
+
+```{r}
+# Useful functions: loo, loo_compare
+loo(f1,f2,f3)
+
+```
+
+```{r}
+
+loo_compare(loo(f1),loo(f2), loo(f3) )
+```
+Model f3 has the best predictive performance based on the results since it has the highest (least negative) elpd_loo value.
+
+In this case, the standard errors (elpd_diff) are relatively small compared to the magnitude of the differences in elpd_loo values. This means that the uncertainty in the estimates does not significantly influence the decision of which model is best. There is enough evidence to confidently state that f3 outperforms f1 and f2 in terms of predictive accuracy. 
+
+## (j)
+
+
+```{r}
+plot(loo(f1), label_points = TRUE)
+
+```
+
+```{r}
+plot(loo(f2), label_points = TRUE)
+
+```
+
+```{r}
+plot(loo(f3), label_points = TRUE)
+
+```
+In a reliable model, most of the Pareto k values should ideally be less than 0.5. Values between 0.5 and 0.7 may be acceptable but indicate that the results should be interpreted with caution, and values above 0.7 suggest that the approximation may be unreliable for the corresponding data points.
+
+
+In models f1 and f2 all values are under 0.5 which is ideal. In the model f3 most of the points are under 0.5 a small amount between 0.5 and 0.7 and only 1 value over 0.7. Thus as model f3 has presence of these high Pareto k values does not invalidate the entire LOO-CV analysis, but it does suggest that the model's predictive performance might be overestimated.
+
+The model f2 appears to provide a more reliable LOO-CV estimation than f3 based on the PSIS diagnostic plots. Even though f3 may have shown better predictive performance in terms of raw elpd_loo scores, the reliability of these scores is questionable because of the high number of high k values.
+
+
+## (k)
+
+Has it been explained why the k values are highest for the hierarchical model? Fewer observations affect each parameter, magnifying the effect of "outliers" on the posterior, resulting in more different posteriors, making IS more difficult.
+
+
+:::: {.content-hidden when-format="pdf"}
+::: {.callout-warning collapse=false}
+
+## Creating a dummy example plot 
+
+
+*This block will only be visible in your HTML output, but will be hidden when rendering to PDF with quarto for the submission.*
+**Make sure that this does not get displayed in the PDF!**
+    
+
+
+
+Creating a dummy fit just to be able to generate an example plot below. 
+Generate a similar plot for your hierarchical model.
+
+```{r}
+# The brms-formula (weights ~ ...) below is not one that you should be using in your models!
+
+# Adjust the chicken_idxs variable to select appropriate chickens
+chicken_idxs = c(1,3,11,43)
+# Create this plot for your hierarchical model for selected chickens
+
+```
+
+:::
+::::
+
+
+## Model comparison using the RMSE
+
+## (l)
+
+```{r}
+# Compute RMSE or LOO-RMSE
+rmse <- function(fit, use_loo=FALSE){
+  mean_y_pred <- if(use_loo){
+    brms::loo_predict(fit)
+  }else{
+    colMeans(brms::posterior_predict(fit)) 
+  }
+  sqrt(mean(
+    (mean_y_pred - brms::get_y(fit))^2
+  ))
+}
+
+
+rmse(f1)
+rmse(f2)
+rmse(f3)
+```
+f1 = 38
+f2 = 34
+f3 = 16
+
+RMSE measures the average prediction error using training data, while LOO-RMSE estimates error through cross-validation, indicating generalization to new data. LOO-RMSE typically exceeds RMSE, reflecting the model's ability to handle unseen data versus fitting to the training set.
+
+LOO-RMSE can be expected to be higher than RMSE because LOO-RMSE assesses model performance on data not used during training, thus incorporating the model's ability to generalize. RMSE, on the other hand, might be optimistic as it measures error on the same data the model has seen
+
+AI was not used.
+
+:::: {.content-hidden when-format="pdf"}
+::: {.callout-warning collapse=false}
+
+## `rmse` function implementation
+
+
+*This block will only be visible in your HTML output, but will be hidden when rendering to PDF with quarto for the submission.*
+**Make sure that this does not get displayed in the PDF!**
+    
+
+
+
+The below function takes a brms fit object and computes either the [root-mean-square error (RMSE)](https://en.wikipedia.org/wiki/Root-mean-square_deviation) or the PSIS-LOO-RMSE, i.e. the RMSE using LOO-CV estimated using PSIS-LOO.
+
+
+:::
+::::
+

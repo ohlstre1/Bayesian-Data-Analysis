@@ -1,0 +1,287 @@
+---
+title: "Assignment 4"
+author: anonymous # <-- hand in anonymously
+format: 
+  html:
+    toc: true
+    code-tools: true
+    code-line-numbers: true  
+    number-sections: true
+    mainfont: Georgia, serif
+    page-layout: article
+  pdf:  
+    geometry:
+    - left=1cm,top=1cm,bottom=1cm,right=7cm
+    number-sections: true
+    code-annotations: none
+editor: source
+---
+
+
+# General information
+
+:::: {.content-hidden when-format="pdf"}
+::: {.callout-warning collapse=false}
+ 
+## Setup 
+
+
+*This block will only be visible in your HTML output, but will be hidden when rendering to PDF with quarto for the submission.*
+**Make sure that this does not get displayed in the PDF!**
+    
+
+
+
+This is the template for [assignment 4](assignment4.html). You can download the [qmd-file](./template4.qmd) or copy the code from this rendered document after clicking on `</> Code` in the top right corner.
+
+**Please replace the instructions in this template by your own text, explaining what you are doing in each exercise.** 
+
+The following will set-up [`markmyassignment`](https://github.com/MansMeg/markmyassignment) to check your functions at the end of the notebook:
+ 
+```{r} 
+if(!require(markmyassignment)){
+    install.packages("markmyassignment")
+    library(markmyassignment)
+}
+assignment_path = paste("https://github.com/avehtari/BDA_course_Aalto/",
+"blob/master/assignments/tests/assignment4.yml", sep="")
+set_assignment(assignment_path)    
+```       
+
+The following installs and loads the `aaltobda` package:
+```{r}
+if(!require(aaltobda)){
+    install.packages("remotes")
+    remotes::install_github("avehtari/BDA_course_Aalto", subdir = "rpackage", upgrade="never")
+    library(aaltobda)
+}
+```
+The following installs and loads the [`latex2exp` package](https://github.com/stefano-meschiari/latex2exp), which allows us to use LaTeX in plots:
+```{r}
+if(!require(latex2exp)){
+    install.packages("latex2exp")
+    library(latex2exp)
+}
+```
+
+:::
+::::
+
+
+# Bioassay model 
+
+## (a)
+```{r}
+mu_a <- 0  # Mean of the first variable
+mu_b <- 10  # Mean of the second variable
+sigma_a <- 2  # Standard deviation of the first variable
+sigma_b <- 10  # Standard deviation of the second variable
+rho <- 0.6  # Correlation coefficient
+
+cov_matrix <- matrix(c(sigma_a^2, rho * sigma_a * sigma_b, rho * sigma_a * sigma_b, sigma_b^2), nrow = 2, ncol = 2)
+
+mean_vector <- c(mu_a, mu_b)
+
+print("Mean Vector:")
+print(mean_vector)
+
+print("Covariance Matrix:")
+print(cov_matrix)
+
+```
+
+## (b)
+
+```{r}
+
+alpha = bioassay_posterior[,1]
+beta  = bioassay_posterior[,2]
+
+sample_mean = c(mean(bioassay_posterior[,1]), mean(bioassay_posterior[,2]))
+
+print(paste("Sample mean of alpha=", sample_mean[1]," and beta=",sample_mean[2]))
+
+qa <- quantile(alpha, c(0.05,0.95))
+qb <- quantile(beta, c(0.05,0.95))
+mcseqa_lower <- mcse_quantile(alpha, 0.05)
+mcseqa_upper <- mcse_quantile(alpha, 0.95)
+mcseqb_lower <- mcse_quantile(beta, 0.05)
+mcseqb_upper <- mcse_quantile(beta, 0.95)
+print("")
+print(paste("Quantiles of alpha (0.05 and 0.95):", qa[1], qa[2]))
+print(paste("Quantiles of beta (0.05 and 0.95):", qb[1], qb[2]))
+print("")
+
+print(paste("MCSE for quantile of alpha (0.05):", mcseqa_lower))
+print(paste("MCSE for quantile of alpha (0.95):", mcseqa_upper))
+
+print(paste("MCSE for quantile of beta (0.05):", mcseqb_lower))
+print(paste("MCSE for quantile of beta (0.95):", mcseqb_upper))
+
+
+
+```
+
+The mean of α is 1.0, the mean of β is 10.6
+The quantiles for α are [-0.5, 2.6], 
+the quantiles for β are [4, 20]
+
+MCSE for quantile of alpha (0.05) = 0.03
+MCSE for quantile of alpha (0.95) = 0.04
+
+MCSE for quantile of beta (0.05) = 0.07
+MCSE for quantile of beta (0.95) = 0.24
+
+Likley variation to alphas 5% quantiles is +- 0.03 and 95% quantile is +- 0.04.
+From this we can interpret that it’s very unlikely there would be variation in the reported estimate for the 95% as this would not change. Therefore we use report accurate alpha MCSE.
+
+Likley variation to betas 5% quantiles is +- 0.07 (comparable quantile variation is 0.7)  and 95% quantile is +- 0.024 (comparable quantile variation is 2.5)
+Therefore there is more variation in the higher quantile with it having a good chance to be wrong as through Montecarlo simulations showed that beta can be between 17 and 22. 
+
+The rule to choose how many digits to represent is based on how accurate our results are, the more accurate the more digits. The less accurate the less digits.
+
+
+
+
+Loading the library and the data.
+``` {r}
+# Useful functions: quantile()
+# and mcse_quantile() (from aaltobda)
+data("bioassay_posterior")
+# The 4000 draws are now stored in the variable `bioassay_posterior`.
+# The below displays the first rows of the data:
+head(bioassay_posterior)
+```
+
+
+# Importance sampling
+
+## (c)
+
+
+```{r}
+# Useful functions: bioassaylp (from aaltobda)
+alpha_test = c(1.896, -3.6,  0.374, 0.964, -3.123, -1.581)
+beta_test = c(24.76, 20.04, 6.15, 18.65, 8.16, 17.4)
+
+
+log_importance_weights <- function(alpha, beta) {
+    return(bioassaylp(alpha, beta, bioassay$x, bioassay$y, bioassay$n))
+   
+}
+log_importance_weights(alpha_test,beta_test)  #T c(-8.95, -23.47, -6.02, -8.13, -16.61, -14.57)
+
+```
+
+In importance sampling, we often use log importance ratios instead of ratios for numerical stability and precision. It is better since the troubles of values close to zero that arises when using floating point numbers is skipped.
+
+## (d)
+
+
+```{r}
+normalized_importance_weights <- function(alpha, beta) {
+  
+    weights <- log_importance_weights(alpha,beta)
+    exponated_weights = exp(weights)
+    return( exponated_weights / sum(exponated_weights) )
+   
+}
+#normalized_importance_weights(alpha_test,beta_test) #Test with right answers = c(0.045, 0.000, 0.852, 0.103, 0.000, 0.000)
+
+```
+
+
+
+
+## (e)
+```{r}
+
+n <- 4000
+alphaSample <- rnorm(n,mu_a,sigma_a)
+betaSample <- rnorm(n,mu_b,sigma_b)
+weights <- normalized_importance_weights(alphaSample,betaSample)
+hist(weights)
+
+```
+
+The exponentiating returns the weights to regular weights from log weights. The summing to one and dividing by that makes them normalised so they can be used for further calculations.
+
+## (f)
+
+
+```{r}
+S_eff <- function(alpha, beta) {
+  weights <- normalized_importance_weights(alpha,beta)
+  return(1/sum(weights^2))
+}
+round(S_eff(alpha = alphaSample, beta = betaSample),3)
+#S_eff(alpha_test,beta_test) # right = 1.354
+```
+
+
+The importance sampling effective sample size is around 936.
+
+
+## (g)
+
+It represents the approximate equivalent sample size if we were sampling the true distribution. In the histogram in assignment e) there are many larger weights thus the sample effective sample size is reduced from the original 4000.
+
+
+## (h)
+
+Using equation 10.3 from the book, where h(θ) is α or β to calculate E(α) or E(β). Importance sampling takes observations from a known sample and multiplies with weights that relate the known sample distribution with the unknown to get the expectation from the unknown distribution.
+
+
+```{r}
+posterior_mean <- function(alpha, beta) {
+  S <- length(alpha)
+  weights <- normalized_importance_weights(alpha,beta)
+  Ea <- (1/S*sum(alpha*weights))/(1/S*sum(weights))
+  Eb <- (1/S*sum(beta*weights))/(1/S*sum(weights))
+  return(c(Ea,Eb))
+    c(0.503, 8.275)
+}
+```
+
+
+
+```{r}
+MCSE <- function(alpha,beta) { S <- length(alpha)
+  weights <- normalized_importance_weights(alpha,beta)
+  Ea <- (1/S*sum(alpha*weights))/(1/S*sum(weights))
+  Eb <- (1/S*sum(beta*weights))/(1/S*sum(weights))
+  Ea2 <- (1/S*sum(alpha^2*weights))/(1/S*sum(weights))
+  Eb2 <- (1/S*sum(beta^2*weights))/(1/S*sum(weights))
+  Seff <- S_eff(alpha,beta)
+  return(c(sqrt((Ea2-Ea^2)/Seff), sqrt((Eb2-Eb^2)/Seff)) )
+}
+
+MCSE(alphaSample,betaSample)
+
+posterior_mean(alpha = alphaSample, beta = betaSample)
+
+```
+
+
+The mean is [1.0, 10]
+
+:::: {.content-hidden when-format="pdf"}
+::: {.callout-warning collapse=false}
+
+## markmyassignment
+
+
+*This block will only be visible in your HTML output, but will be hidden when rendering to PDF with quarto for the submission.*
+**Make sure that this does not get displayed in the PDF!**
+    
+
+
+The following will check the functions for which `markmyassignment` has been set up:
+ 
+```{r}  
+mark_my_assignment()    
+```      
+
+:::
+::::
+
